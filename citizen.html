@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OptiBin – Report a Bin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #f4f6f9;
+      --surface: #fff;
+      --border: #e4e8ef;
+      --accent: #f59e0b;
+      --accent-dark: #d97706;
+      --text: #1a2035;
+      --muted: #6b7a99;
+      --sm: #9aa3ba;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --radius: 12px;
+      --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .topbar-brand span {
+      font-size: 22px;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .btn-logout {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn-logout:hover {
+      background: var(--bg);
+    }
+
+    .page-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* CARD */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .card-sub {
+      font-size: 12px;
+      color: var(--sm);
+      margin-bottom: 18px;
+    }
+
+    /* FORM */
+    .fgrp {
+      margin-bottom: 14px;
+    }
+
+    .fgrp label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .fgrp input,
+    .fgrp select,
+    .fgrp textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .fgrp input:focus,
+    .fgrp select:focus,
+    .fgrp textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .fgrp textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .urgent-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      cursor: pointer;
+    }
+
+    .urgent-row input {
+      width: auto;
+    }
+
+    .urgent-row label {
+      font-size: 13px;
+      color: #92400e;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .2s;
+    }
+
+    .btn-submit:hover {
+      background: var(--accent-dark);
+    }
+
+    /* MAP */
+    #citizenMap {
+      width: 100%;
+      height: 360px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    /* REPORT LIST */
+    .report-item {
+      padding: 13px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border-left: 4px solid var(--border);
+    }
+
+    .report-item.urgent {
+      border-left-color: var(--red);
+    }
+
+    .report-item.open {
+      border-left-color: var(--yellow);
+    }
+
+    .report-item.resolved {
+      border-left-color: var(--green);
+      opacity: .7;
+    }
+
+    .ri-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+
+    .ri-id {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .ri-time {
+      font-size: 11px;
+      color: var(--sm);
+    }
+
+    .ri-bin {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .ri-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .ri-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+      text-transform: uppercase;
+    }
+
+    .open {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .resolved {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .urgent-badge {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--sm);
+      padding: 30px 20px;
+      font-size: 13px;
+    }
+
+    @media (max-width:700px) {
+      .page-wrap {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="topbar-brand"><span>🏘️</span> OptiBin — Citizen Portal</div>
+    <div class="topbar-right">
+      <div class="user-chip" id="userChip">Loading…</div>
+      <button class="btn-logout" onclick="Auth.logout()">← Logout</button>
+    </div>
+  </header>
+
+  <div class="page-wrap">
+
+    <!-- LEFT: Report Form + Map -->
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">🚨 Report a Bin Issue</div>
+        <div class="card-sub">Your report goes directly to the admin and the nearest truck driver</div>
+
+        <form id="reportForm">
+          <div class="fgrp">
+            <label for="selBin">Select Bin</label>
+            <select id="selBin" required>
+              <option value="">-- Choose a bin --</option>
+            </select>
+          </div>
+          <div class="fgrp">
+            <label for="selType">Issue Type</label>
+            <select id="selType">
+              <option>Overflowing</option>
+              <option>Damaged</option>
+              <option>Bad Smell</option>
+              <option>Blocked Access</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="fgrp">
+            <label for="descInput">Description</label>
+            <textarea id="descInput"
+              placeholder="e.g. Bin is overflowing since morning, waste is spilling on road…"></textarea>
+          </div>
+          <div class="urgent-row" onclick="document.getElementById('urgentChk').click()">
+            <input type="checkbox" id="urgentChk" />
+            <label for="urgentChk">⚠️ Mark as URGENT (immediate collection needed)</label>
+          </div>
+          <button type="submit" class="btn-submit">Submit Report</button>
+        </form>
+      </div>
+
+      <!-- Map showing bin locations -->
+      <div class="card">
+        <div class="card-title">📍 Bin Locations Near You</div>
+        <div class="card-sub">Click a marker to see bin info</div>
+        <div id="citizenMap"></div>
+        <div style="display:flex;gap:14px;font-size:11px;color:var(--muted)">
+          <span>🟢 Low</span><span>🟡 Medium</span><span>🔴 Full/Overflowing</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: My Reports -->
+    <div class="card">
+      <div class="card-title">📋 My Reports</div>
+      <div class="card-sub">Your submitted reports and their current status</div>
+      <div id="myReportsList">
+        <div class="empty-state">No reports submitted yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toastArea" style="position:fixed;bottom:20px;right:20px;z-index:999"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="api.js"></script>
+  <script src="auth.js"></script>
+  <script src="data.js"></script>
+  <script src="reports.js"></script>
+  <script>
+    // Guard
+    if (!Auth.requireRole('citizen')) throw new Error('Access denied');
+    document.getElementById('userChip').textContent = '👤 ' + Auth.getName();
+
+    // Session key to track this citizen's reports
+    const MY_KEY = 'optibin_my_reports_' + Auth.getName();
+
+    /* -- Populate bin select -- */
+    async function populateBinSelect() {
+      try {
+        const bins = await Api.Bins.getAll();
+        const sel = document.getElementById('selBin');
+        sel.innerHTML = '<option value="">-- Choose a bin --</option>';
+        bins.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.id;
+          opt.textContent = `${b.id} – ${b.location} (${b.fill.toFixed(0)}% full)`;
+          sel.appendChild(opt);
+        });
+        // Update map markers too
+        renderCitizenMapBins(bins);
+      } catch (e) {
+        // Fallback: use BinStore cache (already loaded)
+        const sel = document.getElementById('selBin');
+        sel.innerHTML = '<option value="">-- Choose a bin --</option>';
+        BinStore.getAll().forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.id;
+          opt.textContent = `${b.id} – ${b.location} (${b.fill.toFixed(0)}% full)`;
+          sel.appendChild(opt);
+        });
+      }
+    }
+
+    /* -- Citizen Map -- */
+    const cmap = L.map('citizenMap').setView([28.6270, 77.3000], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 19
+    }).addTo(cmap);
+
+    function fillColor(f) { return f <= 40 ? '#22c55e' : f <= 75 ? '#f59e0b' : '#ef4444'; }
+    let binMarkerLayer = L.layerGroup().addTo(cmap);
+
+    function renderCitizenMapBins(bins) {
+      binMarkerLayer.clearLayers();
+      bins.forEach(bin => {
+        const m = L.circleMarker([bin.lat, bin.lng], {
+          radius: 9 + (bin.fill / 100) * 8, fillColor: fillColor(bin.fill),
+          color: fillColor(bin.fill), weight: 2, fillOpacity: 0.75
+        }).addTo(binMarkerLayer);
+        m.bindPopup(`<b>${bin.id}</b><br>${bin.location}<br><b style="color:${fillColor(bin.fill)}">${bin.fill.toFixed(0)}% full</b>`);
+        m.on('click', () => {
+          document.getElementById('selBin').value = bin.id;
+          if (bin.fill > 75) document.getElementById('urgentChk').checked = true;
+        });
+      });
+    }
+
+    /* -- Submit report -- */
+    document.getElementById('reportForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const binId = document.getElementById('selBin').value;
+      if (!binId) { showToast('Please select a bin.', 'error'); return; }
+      const bins = await Api.Bins.getAll();
+      const bin = bins.find(b => b.id === binId);
+
+      const report = await Api.Reports.add({
+        binId,
+        binLocation: bin ? bin.location : binId,
+        type: document.getElementById('selType').value,
+        description: document.getElementById('descInput').value.trim(),
+        reporterName: Auth.getName(),
+        urgent: document.getElementById('urgentChk').checked,
+      });
+
+      // Save report ID to localStorage for this user's list
+      const mine = JSON.parse(localStorage.getItem(MY_KEY) || '[]');
+      mine.unshift(report.id);
+      localStorage.setItem(MY_KEY, JSON.stringify(mine));
+
+      showToast('✅ Report submitted! Admin and driver notified.', 'success');
+      document.getElementById('reportForm').reset();
+      await renderMyReports();
+    });
+
+    /* -- My Reports list -- */
+    async function renderMyReports() {
+      const mineIds = JSON.parse(localStorage.getItem(MY_KEY) || '[]');
+      const all = await Api.Reports.getAll();
+      const mine = mineIds.map(id => all.find(r => r.id === id)).filter(Boolean);
+      const el = document.getElementById('myReportsList');
+
+      if (!mine.length) { el.innerHTML = '<div class="empty-state">No reports submitted yet.</div>'; return; }
+
+      el.innerHTML = mine.map(r => {
+        const time = new Date(r.timestamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+        return `<div class="report-item ${r.urgent ? 'urgent' : r.status}">
+        <div class="ri-top">
+          <span class="ri-id">${r.id}</span>
+          <span class="ri-time">${time}</span>
+        </div>
+        <div class="ri-bin">${r.binId} – ${r.binLocation}</div>
+        <div class="ri-desc">${r.type}${r.description ? ' · ' + r.description : ''}</div>
+        <div style="margin-top:6px;display:flex;gap:6px">
+          <span class="ri-badge ${r.status}">${r.status}</span>
+          ${r.urgent ? '<span class="ri-badge urgent-badge">URGENT</span>' : ''}
+        </div>
+      </div>`;
+      }).join('');
+    }
+
+    // Init: load bins from API, populate select and map
+    (async () => {
+      await BinStore.init();
+      await populateBinSelect();
+      await renderMyReports();
+      // Poll for status updates every 15 seconds
+      setInterval(renderMyReports, 15000);
+    })();
+
+    function showToast(msg, type = 'info') {
+      const t = document.createElement('div');
+      t.style.cssText = `background:${type === 'success' ? '#166534' : type === 'error' ? '#991b1b' : '#1d4ed8'};color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;font-weight:500;margin-top:8px;font-family:Inter,sans-serif;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,0.2)`;
+      t.textContent = msg;
+      document.getElementById('toastArea').appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+  </script>
+</body>
+
+</html>

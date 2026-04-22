@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OptiBin – Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 36px;
+    }
+    .brand-icon {
+      width: 48px; height: 48px;
+      background: #3b6ef6; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; color: #fff;
+    }
+    .brand-name { font-size: 28px; font-weight: 700; color: #1a2035; }
+    .brand-sub  { font-size: 13px; color: #6b7a99; }
+
+    h2 { font-size: 20px; font-weight: 700; color: #1a2035; text-align: center; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #6b7a99; text-align: center; margin-bottom: 28px; }
+
+    .role-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 16px; width: 100%; max-width: 780px; margin-bottom: 24px;
+    }
+    .role-card {
+      background: #fff;
+      border: 2px solid #e4e8ef;
+      border-radius: 16px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .role-card:hover { border-color: var(--rc); box-shadow: 0 4px 20px rgba(0,0,0,0.10); transform: translateY(-3px); }
+    .role-card.selected { border-color: var(--rc); background: var(--rcl); }
+    .role-icon { font-size: 38px; margin-bottom: 12px; }
+    .role-title { font-size: 15px; font-weight: 700; color: #1a2035; margin-bottom: 6px; }
+    .role-desc  { font-size: 12px; color: #6b7a99; line-height: 1.5; }
+
+    .login-form {
+      background: #fff; border: 1px solid #e4e8ef;
+      border-radius: 16px; padding: 28px;
+      width: 100%; max-width: 400px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    }
+    .form-title { font-size: 15px; font-weight: 700; margin-bottom: 18px; color: #1a2035; }
+    label { font-size: 13px; font-weight: 500; color: #6b7a99; display: block; margin-bottom: 6px; }
+    input, select {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #e4e8ef; border-radius: 8px;
+      font-size: 13px; font-family: inherit; color: #1a2035;
+      outline: none; margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: #3b6ef6; }
+    .btn-login {
+      width: 100%; padding: 12px;
+      background: #3b6ef6; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: background 0.2s;
+    }
+    .btn-login:hover { background: #2d5de6; }
+    .error { font-size: 12px; color: #ef4444; margin-bottom: 10px; display: none; }
+
+    /* forms per role */
+    .form-section { display: none; }
+    .form-section.active { display: block; }
+
+    @media (max-width: 640px) {
+      .role-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="brand-icon">🗑️</div>
+    <div>
+      <div class="brand-name">OptiBin</div>
+      <div class="brand-sub">Smart Waste Management System</div>
+    </div>
+  </div>
+
+  <h2>Welcome — Choose Your Role</h2>
+  <p class="subtitle">Select how you'd like to access OptiBin today</p>
+
+  <div class="role-grid">
+    <div class="role-card" id="rcAdmin" style="--rc:#3b6ef6;--rcl:#eef2ff" onclick="selectRole('admin')">
+      <div class="role-icon">🛡️</div>
+      <div class="role-title">Admin</div>
+      <div class="role-desc">Manage bins & trucks, view all routes, monitor reports and fleet status</div>
+    </div>
+    <div class="role-card" id="rcDriver" style="--rc:#0d9488;--rcl:#f0fdfb" onclick="selectRole('driver')">
+      <div class="role-icon">🚛</div>
+      <div class="role-title">Truck Driver</div>
+      <div class="role-desc">View your assigned route, get citizen alerts, mark bins as collected</div>
+    </div>
+    <div class="role-card" id="rcCitizen" style="--rc:#f59e0b;--rcl:#fffbeb" onclick="selectRole('citizen')">
+      <div class="role-icon">🏘️</div>
+      <div class="role-title">Citizen</div>
+      <div class="role-desc">Report overflowing or damaged bins in your area for quick action</div>
+    </div>
+  </div>
+
+  <!-- Admin Login Form -->
+  <div class="login-form" id="formAdmin" style="display:none">
+    <div class="form-title">🛡️ Admin Login</div>
+    <div class="error" id="adminError">Incorrect username or password.</div>
+    <label>Username</label>
+    <input type="text" id="adminUser" placeholder="admin" />
+    <label>Password</label>
+    <input type="password" id="adminPass" placeholder="••••••••" />
+    <button class="btn-login" onclick="loginAdmin()">Login as Admin</button>
+  </div>
+
+  <!-- Driver Login Form -->
+  <div class="login-form" id="formDriver" style="display:none">
+    <div class="form-title">🚛 Driver Login</div>
+    <label>Your Name</label>
+    <input type="text" id="driverName" placeholder="e.g. Ramesh Kumar" />
+    <label>Select Your Truck</label>
+    <select id="driverTruck">
+      <option value="TRK-A">TRK-A — Truck Alpha (North Delhi)</option>
+      <option value="TRK-B">TRK-B — Truck Beta (West Delhi)</option>
+      <option value="TRK-C">TRK-C — Truck Gamma (Central Delhi)</option>
+      <option value="TRK-D">TRK-D — Truck Delta (South Delhi)</option>
+      <option value="TRK-E">TRK-E — Truck Echo (East Delhi)</option>
+      <option value="TRK-F">TRK-F — Truck Foxtrot (Noida)</option>
+      <option value="TRK-G">TRK-G — Truck Golf (Ghaziabad)</option>
+      <option value="TRK-H">TRK-H — Truck Hotel (Gurugram)</option>
+    </select>
+    <button class="btn-login" style="background:#0d9488" onclick="loginDriver()">Login as Driver</button>
+  </div>
+
+  <!-- Citizen Access -->
+  <div class="login-form" id="formCitizen" style="display:none">
+    <div class="form-title">🏘️ Citizen Access</div>
+    <label>Your Name (optional)</label>
+    <input type="text" id="citizenName" placeholder="Anonymous" />
+    <button class="btn-login" style="background:#f59e0b;color:#1a2035" onclick="loginCitizen()">Continue as Citizen</button>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    // If already logged in, redirect
+    const role = Auth.getRole();
+    if (role === 'admin')   window.location.href = 'index.html';
+    if (role === 'driver')  window.location.href = 'driver.html';
+    if (role === 'citizen') window.location.href = 'citizen.html';
+
+    let currentRole = null;
+    const formMap = { admin:'formAdmin', driver:'formDriver', citizen:'formCitizen' };
+    const cardMap = { admin:'rcAdmin', driver:'rcDriver', citizen:'rcCitizen' };
+
+    function selectRole(role) {
+      currentRole = role;
+      // Toggle card selection
+      document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById(cardMap[role]).classList.add('selected');
+      // Show correct form
+      ['formAdmin','formDriver','formCitizen'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+      document.getElementById(formMap[role]).style.display = 'block';
+    }
+
+    function loginAdmin() {
+      const user = document.getElementById('adminUser').value.trim();
+      const pass = document.getElementById('adminPass').value.trim();
+      if (user === 'admin' && pass === 'admin123') {
+        Auth.setRole('admin', { name: 'Admin' });
+        window.location.href = 'index.html';
+      } else {
+        document.getElementById('adminError').style.display = 'block';
+      }
+    }
+
+    function loginDriver() {
+      const name = document.getElementById('driverName').value.trim() || 'Driver';
+      const truck = document.getElementById('driverTruck').value;
+      Auth.setRole('driver', { driverId: truck, name });
+      window.location.href = 'driver.html';
+    }
+
+    function loginCitizen() {
+      const name = document.getElementById('citizenName').value.trim() || 'Anonymous';
+      Auth.setRole('citizen', { name });
+      window.location.href = 'citizen.html';
+    }
+  </script>
+</body>
+</html>

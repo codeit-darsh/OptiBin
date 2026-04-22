@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OptiBin – Smart Waste Management Dashboard</title>
+  <meta name="description" content="Real-time smart waste bin monitoring, truck routing, and priority management." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Leaflet CSS (free, no API key, works with file://) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </div>
+        <span class="logo-text">OptiBin</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-tab="dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="map">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        <span>Live Map</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="manage">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Manage Bins</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="route">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+        <span>Route Optimizer</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="reports">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Reports</span>
+        <span id="reportsBadge" style="background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;margin-left:auto;display:none">0</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="visual">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Visualization</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="status-dot" id="simStatusDot"></span>
+      <span id="simStatusText">Admin Panel</span>
+      <button onclick="Auth.logout()" style="margin-left:auto;background:none;border:none;font-size:11px;color:var(--text-muted);cursor:pointer;font-family:var(--font)">Logout</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content" id="mainContent">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title" id="pageTitle">Dashboard</h1>
+        <span class="page-subtitle" id="pageSubtitle">Real-time waste bin monitoring</span>
+      </div>
+      <div class="topbar-right">
+        <span class="last-updated" id="lastUpdated">Updated just now</span>
+        <button class="btn btn-outline" id="refreshBtn">&#8635; Refresh</button>
+        <button class="btn btn-outline" id="randomizeBtn" title="Set all bins to random fill levels">🎲 Randomize Data</button>
+      </div>
+    </header>
+
+    <!-- TAB: DASHBOARD -->
+    <section class="tab-panel active" id="tabDashboard">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon green">&#128465;</div><div class="stat-info"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total Bins</div></div></div>
+        <div class="stat-card"><div class="stat-icon red">&#9888;</div><div class="stat-info"><div class="stat-value" id="statFull">0</div><div class="stat-label">Needs Collection</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue">&#128202;</div><div class="stat-info"><div class="stat-value" id="statAvg">0%</div><div class="stat-label">Avg Fill Level</div></div></div>
+        <div class="stat-card"><div class="stat-icon yellow">&#10003;</div><div class="stat-info"><div class="stat-value" id="statLow">0</div><div class="stat-label">Operational</div></div></div>
+      </div>
+      <div class="section-header">
+        <h2 class="section-title">Bin Overview</h2>
+        <div class="filter-row">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="low">Low</button>
+          <button class="filter-btn" data-filter="medium">Medium</button>
+          <button class="filter-btn" data-filter="full">Full</button>
+        </div>
+      </div>
+      <div class="bin-grid" id="binGrid"></div>
+    </section>
+
+    <!-- TAB: LIVE MAP -->
+    <section class="tab-panel" id="tabMap">
+
+      <!-- Truck Fleet Panel -->
+      <div class="truck-fleet-bar" id="truckFleetBar">
+        <!-- Truck cards injected by JS -->
+      </div>
+
+      <!-- Map Controls -->
+      <div class="map-controls-bar">
+        <div class="map-ctrl-group">
+          <label class="ctrl-label">Collection Threshold</label>
+          <input type="range" id="mapThreshold" min="0" max="100" value="30" class="range-slider" style="width:120px" />
+          <span id="mapThresholdLabel" style="font-size:12px;font-weight:600;color:var(--accent)">30%</span>
+        </div>
+        <button class="btn btn-primary" id="assignRoutesBtn">&#8634; Assign Routes &amp; Show Roads</button>
+        <div class="map-legend-inline">
+          <span class="legend-item"><span class="legend-dot green"></span>Low</span>
+          <span class="legend-item"><span class="legend-dot yellow"></span>Medium</span>
+          <span class="legend-item"><span class="legend-dot red"></span>Full</span>
+        </div>
+        <span id="routeLoadingMsg" style="font-size:12px;color:var(--accent);display:none">⏳ Fetching road routes…</span>
+      </div>
+
+      <!-- Leaflet Map Container -->
+      <div id="leafletMap" class="leaflet-map-container"></div>
+
+    </section>
+
+    <!-- TAB: MANAGE -->
+    <section class="tab-panel" id="tabManage">
+      <div class="manage-layout">
+        <div class="form-card">
+          <div class="form-card-header"><h2>Add New Bin</h2><p>Register a bin — click map to set exact location</p></div>
+          <form id="addBinForm">
+            <div class="form-group"><label for="binId">Bin ID</label><input type="text" id="binId" placeholder="e.g. BIN-041" required /></div>
+            <div class="form-group"><label for="binLocation">Location Name</label><input type="text" id="binLocation" placeholder="e.g. Sector 22 Market" required /></div>
+            <div class="form-group">
+              <label for="binZone">Zone</label>
+              <select id="binZone"><option>North Delhi</option><option>South Delhi</option><option>East Delhi</option><option>West Delhi</option><option>Central Delhi</option><option>Noida</option><option>Ghaziabad</option><option>Gurugram</option><option>Faridabad</option></select>
+            </div>
+            <div class="form-group"><label for="binFill">Initial Fill: <span id="fillLabelAdd">0%</span></label><input type="range" id="binFill" min="0" max="100" value="0" class="range-slider" /></div>
+            <div class="form-group"><label for="binCapacity">Capacity (L)</label><input type="number" id="binCapacity" value="120" min="10" /></div>
+            <div class="form-group">
+              <label>Coordinates <span id="binCoordsLabel" style="font-weight:700;color:var(--accent)">← Click map to set</span></label>
+              <div style="display:flex;gap:8px">
+                <input type="number" id="binLat" step="0.0001" placeholder="Latitude" style="flex:1" />
+                <input type="number" id="binLng" step="0.0001" placeholder="Longitude" style="flex:1" />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary full-width">Add Bin</button>
+          </form>
+        </div>
+
+        <!-- Mini map for bin placement -->
+        <div class="form-card">
+          <div class="form-card-header"><h2>📍 Pick Location on Map</h2><p>Click anywhere on the map to set bin coordinates</p></div>
+          <div id="binPickerMap" style="height:320px;border-radius:10px;overflow:hidden;border:1px solid var(--border)"></div>
+        </div>
+
+        <div class="form-card">
+          <div class="form-card-header"><h2>Update Fill Level</h2><p>Manually update a bin's fill</p></div>
+          <form id="updateBinForm">
+            <div class="form-group"><label for="updateBinSelect">Select Bin</label><select id="updateBinSelect"><option value="">-- Select a bin --</option></select></div>
+            <div class="form-group"><label for="updateFill">New Fill Level: <span id="fillLabelUpdate">0%</span></label><input type="range" id="updateFill" min="0" max="100" value="0" class="range-slider" /></div>
+            <button type="submit" class="btn btn-primary full-width">Update Level</button>
+          </form>
+        </div>
+
+        <div class="form-card full-width-card">
+          <div class="form-card-header"><h2>Registered Bins</h2><p>All bins in the system</p></div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>Bin ID</th><th>Location</th><th>Zone</th><th>Fill Level</th><th>Fill Rate</th><th>Status</th><th>Coordinates</th><th>Action</th></tr></thead>
+              <tbody id="binTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: ROUTE -->
+    <section class="tab-panel" id="tabRoute">
+      <div class="route-layout">
+        <div class="form-card">
+          <div class="form-card-header"><h2>Route Settings</h2><p>Configure and generate optimized routes</p></div>
+          <div class="form-group"><label for="thresholdSlider">Collection Threshold: <span id="thresholdLabel">50%</span></label><input type="range" id="thresholdSlider" min="0" max="100" value="50" class="range-slider" /><small class="hint">Only bins above this fill % are included.</small></div>
+          <div class="form-group"><label for="zoneFilter">Filter by Zone</label><select id="zoneFilter"><option value="all">All Zones</option><option>North Delhi</option><option>South Delhi</option><option>East Delhi</option><option>West Delhi</option><option>Central Delhi</option><option>Noida</option><option>Ghaziabad</option><option>Gurugram</option><option>Faridabad</option></select></div>
+          <button class="btn btn-primary full-width" id="generateRouteBtn">Generate Optimized Route</button>
+          <div id="routeMapInfo" style="font-size:11px;color:var(--accent);font-weight:600;margin-top:8px;display:none"></div>
+        </div>
+
+        <div class="form-card" id="routeResult">
+          <div class="form-card-header"><h2>Collection Route</h2><p id="routeDesc">Generate a route to see results</p></div>
+          <div id="routeList" class="route-list"><div class="route-empty"><p>Click "Generate Optimized Route" to begin</p></div></div>
+        </div>
+
+        <div class="form-card full-width-card">
+          <div class="form-card-header"><h2>🗺️ Route on Map</h2><p>Real road route from OSRM · click Generate to see path</p></div>
+          <div id="routePreviewMap" style="height:400px;border-radius:10px;overflow:hidden;border:1px solid var(--border)"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: VISUALIZATION -->
+    <section class="tab-panel" id="tabVisual">
+      <div class="visual-header">
+        <div>
+          <h2 class="section-title">Fill Level Visualization</h2>
+          <p class="visual-subtitle">Fuller bins float higher — spatial urgency metaphor.</p>
+        </div>
+        <div class="view-toggle">
+          <button class="toggle-btn active" data-view="grid" id="toggleGrid">&#9783; Grid</button>
+          <button class="toggle-btn" data-view="map" id="toggleMap">&#9651; Visual</button>
+        </div>
+      </div>
+      <div id="visualGridView" class="bin-grid"></div>
+      <div id="visualMapView" class="visual-map-view hidden">
+        <div class="visual-legend">
+          <span class="legend-item"><span class="legend-dot green"></span>Low (0–40%)</span>
+          <span class="legend-item"><span class="legend-dot yellow"></span>Medium (40–75%)</span>
+          <span class="legend-item"><span class="legend-dot red"></span>Full (75–100%)</span>
+        </div>
+        <div class="visual-canvas" id="visualCanvas"></div>
+        <div class="visual-axis-labels"><span>▲ High Priority</span><span>▼ Low Priority</span></div>
+      </div>
+    </section>
+
+    <!-- TAB: REPORTS (Admin only) -->
+    <section class="tab-panel" id="tabReports">
+
+      <!-- Emergency Alerts -->
+      <div id="emergencySection" style="margin-bottom:20px">
+        <div style="background:linear-gradient(135deg,#fef2f2,#fff1f2);border:1.5px solid #fca5a5;border-radius:12px;padding:18px 20px">
+          <h3 style="margin:0 0 10px;font-size:15px;color:#991b1b;display:flex;align-items:center;gap:8px">🚨 Emergency — Bins Above 85% <span id="emergencyCount" style="background:#ef4444;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700">0</span></h3>
+          <div id="emergencyList" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto"></div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-bottom:16px">
+        <h2 class="section-title">Citizen Reports</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" onclick="renderReports()">&#8635; Refresh</button>
+          <button class="btn btn-outline" id="clearReportsBtn">Clear All</button>
+        </div>
+      </div>
+      <div id="reportsContainer" style="display:flex;flex-direction:column;gap:10px"></div>
+    </section>
+
+  </main>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="api.js"></script>
+  <script src="auth.js"></script>
+  <script src="reports.js"></script>
+  <script src="data.js"></script>
+  <script src="priorityQueue.js"></script>
+  <script src="routeOptimizer.js"></script>
+  <script src="trucks.js"></script>
+  <script src="map.js"></script>
+  <script src="ui.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
