@@ -1,0 +1,4 @@
+node_modules/
+optibin.db
+optibin.db-shm
+optibin.db-wal
