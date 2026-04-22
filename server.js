@@ -8,7 +8,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { Bins, Trucks, Reports, Notifications } = require('./database');
+const { connect, Bins, Trucks, Reports, Notifications } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,124 +27,112 @@ function err(res, msg, code = 400) { res.status(code).json({ success: false, err
 /* ============================================================
    BINS
 ============================================================ */
-app.get('/api/bins', (req, res) => {
-  ok(res, Bins.getAll());
+app.get('/api/bins', async (req, res) => {
+  ok(res, await Bins.getAll());
 });
 
-app.post('/api/bins', (req, res) => {
+app.post('/api/bins', async (req, res) => {
   const { id, location, zone, fill = 0, capacity = 120, lat, lng, fillRate = 1.5 } = req.body;
   if (!id || !location) return err(res, 'id and location are required');
-  if (Bins.getById(id)) return err(res, `Bin "${id}" already exists`);
+  if (await Bins.getById(id)) return err(res, `Bin "${id}" already exists`);
   const center = { lat: 28.6270, lng: 77.3000 };
-  Bins.insert.run({
+  await Bins.insert({
     id, location, zone: zone || 'East Delhi', fill,
     capacity, lat: lat || center.lat + (Math.random() - 0.5) * 0.08,
     lng: lng || center.lng + (Math.random() - 0.5) * 0.12, fillRate,
   });
-  ok(res, Bins.getById(id));
+  ok(res, await Bins.getById(id));
 });
 
-app.put('/api/bins/:id/fill', (req, res) => {
+app.put('/api/bins/:id/fill', async (req, res) => {
   const { fill } = req.body;
   if (fill === undefined) return err(res, 'fill is required');
-  if (!Bins.getById(req.params.id)) return err(res, 'Bin not found', 404);
-  Bins.updateFill.run({ fill: Math.min(100, Math.max(0, fill)), id: req.params.id });
-  ok(res, Bins.getById(req.params.id));
+  if (!await Bins.getById(req.params.id)) return err(res, 'Bin not found', 404);
+  await Bins.updateFill(req.params.id, Math.min(100, Math.max(0, fill)));
+  ok(res, await Bins.getById(req.params.id));
 });
 
-app.delete('/api/bins/:id', (req, res) => {
-  if (!Bins.getById(req.params.id)) return err(res, 'Bin not found', 404);
-  Bins.delete.run(req.params.id);
+app.delete('/api/bins/:id', async (req, res) => {
+  if (!await Bins.getById(req.params.id)) return err(res, 'Bin not found', 404);
+  await Bins.delete(req.params.id);
   ok(res, { id: req.params.id });
 });
 
 // Simulation tick — accumulate fill for all bins
-app.post('/api/bins/tick', (req, res) => {
-  Bins.tick();
-  ok(res, Bins.getAll());
+app.post('/api/bins/tick', async (req, res) => {
+  ok(res, await Bins.tick());
 });
 
 // Collect a bin (reset fill to near 0)
-app.post('/api/bins/:id/collect', (req, res) => {
-  Bins.collect.run(Math.floor(Math.random() * 8), req.params.id);
-  ok(res, Bins.getById(req.params.id));
+app.post('/api/bins/:id/collect', async (req, res) => {
+  await Bins.collect(req.params.id, Math.floor(Math.random() * 8));
+  ok(res, await Bins.getById(req.params.id));
 });
 
 // Randomize ALL bin fill levels (5–100% random)
-app.post('/api/bins/randomize', (req, res) => {
-  const { db } = require('./database');
-  const bins = Bins.getAll();
-  const upd = db.prepare('UPDATE bins SET fill = ? WHERE id = ?');
-  const txn = db.transaction(() => {
-    bins.forEach(b => {
-      const fill = Math.floor(5 + Math.random() * 95);  // 5–100%
-      upd.run(fill, b.id);
-    });
-  });
-  txn();
-  ok(res, Bins.getAll());
+app.post('/api/bins/randomize', async (req, res) => {
+  ok(res, await Bins.randomize());
 });
 
 /* ============================================================
    TRUCKS
 ============================================================ */
-app.get('/api/trucks', (req, res) => {
-  ok(res, Trucks.getAll());
+app.get('/api/trucks', async (req, res) => {
+  ok(res, await Trucks.getAll());
 });
 
-app.post('/api/trucks', (req, res) => {
+app.post('/api/trucks', async (req, res) => {
   const { id, name, driverName = 'Unassigned', color = '#6b7280', lat, lng, zone = 'All' } = req.body;
   if (!id || !name || !lat || !lng) return err(res, 'id, name, lat, lng are required');
-  if (Trucks.getById(id)) return err(res, `Truck "${id}" already exists`);
-  Trucks.insert.run({ id, name, driverName, color, lat, lng, zone });
-  ok(res, Trucks.getById(id));
+  if (await Trucks.getById(id)) return err(res, `Truck "${id}" already exists`);
+  await Trucks.insert({ id, name, driverName, color, lat, lng, zone });
+  ok(res, await Trucks.getById(id));
 });
 
-app.put('/api/trucks/:id', (req, res) => {
-  const truck = Trucks.getById(req.params.id);
+app.put('/api/trucks/:id', async (req, res) => {
+  const truck = await Trucks.getById(req.params.id);
   if (!truck) return err(res, 'Truck not found', 404);
   const updated = { ...truck, ...req.body };
-  Trucks.update.run({
+  await Trucks.update(req.params.id, {
     lat: updated.lat, lng: updated.lng, status: updated.status,
-    route: JSON.stringify(updated.route || []),
+    route: updated.route || [],
     routeIndex: updated.routeIndex || 0,
     collected: updated.collected || 0,
-    id: req.params.id,
   });
-  ok(res, Trucks.getById(req.params.id));
+  ok(res, await Trucks.getById(req.params.id));
 });
 
-app.delete('/api/trucks/:id', (req, res) => {
-  if (!Trucks.getById(req.params.id)) return err(res, 'Truck not found', 404);
-  Trucks.delete.run(req.params.id);
+app.delete('/api/trucks/:id', async (req, res) => {
+  if (!await Trucks.getById(req.params.id)) return err(res, 'Truck not found', 404);
+  await Trucks.delete(req.params.id);
   ok(res, { id: req.params.id });
 });
 
-app.post('/api/trucks/reset', (req, res) => {
-  Trucks.reset();
-  ok(res, Trucks.getAll());
+app.post('/api/trucks/reset', async (req, res) => {
+  await Trucks.reset();
+  ok(res, await Trucks.getAll());
 });
 
 /* ============================================================
    REPORTS
 ============================================================ */
-app.get('/api/reports', (req, res) => {
-  ok(res, Reports.getAll());
+app.get('/api/reports', async (req, res) => {
+  ok(res, await Reports.getAll());
 });
 
-app.post('/api/reports', (req, res) => {
+app.post('/api/reports', async (req, res) => {
   const { binId, binLocation, type, description = '', reporterName = 'Anonymous', urgent = false } = req.body;
   if (!binId || !type) return err(res, 'binId and type are required');
 
   const id = 'RPT-' + uid();
-  Reports.insert.run({
+  await Reports.insert({
     id, binId, binLocation: binLocation || binId, type, description,
-    reporterName, status: 'open', urgent: urgent ? 1 : 0,
+    reporterName, status: 'open', urgent,
     timestamp: new Date().toISOString()
   });
 
   // Auto-create a notification for all roles
-  Notifications.insert.run({
+  await Notifications.insert({
     id: 'NTF-' + uid(),
     title: `🚨 Citizen Report: ${type}`,
     message: `${binId} at ${binLocation} — "${description}"`,
@@ -153,29 +141,29 @@ app.post('/api/reports', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 
-  ok(res, Reports.getById(id));
+  ok(res, await Reports.getById(id));
 });
 
-app.put('/api/reports/:id/status', (req, res) => {
+app.put('/api/reports/:id/status', async (req, res) => {
   const { status } = req.body;
   if (!status) return err(res, 'status is required');
-  Reports.updateStatus.run(status, req.params.id);
-  ok(res, Reports.getById(req.params.id));
+  await Reports.updateStatus(req.params.id, status);
+  ok(res, await Reports.getById(req.params.id));
 });
 
 /* ============================================================
    NOTIFICATIONS
 ============================================================ */
-app.get('/api/notifications', (req, res) => {
+app.get('/api/notifications', async (req, res) => {
   const { role = 'all', driverId } = req.query;
-  ok(res, Notifications.getAll(role, driverId));
+  ok(res, await Notifications.getAll(role, driverId));
 });
 
-app.post('/api/notifications', (req, res) => {
+app.post('/api/notifications', async (req, res) => {
   const { title, message, type = 'info', binId, reportId, forRole = 'all', forDriver } = req.body;
   if (!title) return err(res, 'title is required');
   const id = 'NTF-' + uid();
-  Notifications.insert.run({
+  await Notifications.insert({
     id, title, message: message || '', type,
     binId: binId || null, reportId: reportId || null,
     forRole, forDriver: forDriver || null,
@@ -184,14 +172,14 @@ app.post('/api/notifications', (req, res) => {
   ok(res, { id });
 });
 
-app.put('/api/notifications/:id/read', (req, res) => {
-  Notifications.markRead.run(req.params.id);
+app.put('/api/notifications/:id/read', async (req, res) => {
+  await Notifications.markRead(req.params.id);
   ok(res, { id: req.params.id });
 });
 
-app.put('/api/notifications/mark-all-read', (req, res) => {
+app.put('/api/notifications/mark-all-read', async (req, res) => {
   const { role = 'all', driverId } = req.body;
-  Notifications.markAllRead(role, driverId);
+  await Notifications.markAllRead(role, driverId);
   ok(res, { success: true });
 });
 
@@ -202,7 +190,15 @@ app.get('/', (req, res) => {
   res.redirect('/login.html');
 });
 
-app.listen(PORT, () => {
-  console.log(`\n✅  OptiBin server running at http://localhost:${PORT}`);
-  console.log(`    Open → http://localhost:${PORT}/login.html\n`);
+/* ============================================================
+   START — connect to MongoDB first, then listen
+============================================================ */
+connect().then(() => {
+  app.listen(PORT, () => {
+    console.log(`\n✅  OptiBin server running at http://localhost:${PORT}`);
+    console.log(`    Open → http://localhost:${PORT}/login.html\n`);
+  });
+}).catch(e => {
+  console.error('❌ Failed to connect to MongoDB:', e.message);
+  process.exit(1);
 });
